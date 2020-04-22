@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np 
 import sys
 
+#Laboratorio 1
+
 def read_csv(fname, colx, coly):
     data = pd.read_csv(fname)
     actionLatencyTensor = torch.tensor(data[colx])
