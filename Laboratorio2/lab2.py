@@ -6,7 +6,7 @@ import numpy as np
 import sys
 from math import e
 
-#Laboratorio 1 PRUEBA
+#Laboratorio 2
 
 def model_fn(input_size, hidden_sizes, output_size):
     print('input_size %.2f, hidden_sizes %.2f, output_size %.2f'%(input_size, hidden_sizes[0], output_size))
