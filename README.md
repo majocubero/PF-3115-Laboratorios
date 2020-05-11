@@ -10,3 +10,4 @@ María José Cubero B22148
 Laboratorios completados:
 
 - Laboratorio 1
+- Laboratorio 2
