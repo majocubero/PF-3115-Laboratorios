@@ -3,6 +3,7 @@ import read_idx
 import PIL.Image
 import sys
 import torch.nn as nn
+from sklearn.metrics import classification_report
 
 def to_list(img):
     return list(map(int, img.view((28*28,)).tolist()))
@@ -10,7 +11,6 @@ def to_list(img):
 SCALE_OFF = 0    
 SCALE_RANGE = 1
 SCALE_01 = 2
-    
 
 def show_image(tens, imgname=None, scale=SCALE_OFF):
     """
@@ -43,82 +43,104 @@ def model_fn(input_size, hidden_sizes, output_size):
     return nn.Sequential(
     # Hidden Layer 
     nn.Linear(input_size, hidden_sizes[0]),
-    nn.Sigmoid(),
-    #nn.ReLU(),
+    #nn.Sigmoid(),
+    nn.ReLU(),
     #nn.Tanh(),
     nn.Linear(hidden_sizes[0], output_size),
     nn.Softmax(1))
 
-def training_opt_SGD(n, alpha, x, y, model):
-    optimizer = torch.optim.SGD(model.parameters(), lr= alpha)
+## Sequencial2: returns results with more layers
+def model_fn2(input_size, hidden_sizes, output_size):
+    print('input_size %.2f, hidden_sizes %.2f, output_size %.2f'%(input_size, hidden_sizes[0], output_size))
+    return nn.Sequential(
+    # Hidden Layer 
+    nn.Linear(input_size, hidden_sizes[0]),
+    #nn.Sigmoid(),
+    nn.ReLU(),
+    nn.Linear(hidden_sizes[0], hidden_sizes[1]),
+    #nn.Sigmoid(),
+    nn.ReLU(),
+    #nn.Tanh(),
+    nn.Linear(hidden_sizes[1], output_size),
+    nn.Softmax(1))
+
+def training_opt_Adam(n, alpha, x, y, model):  
     training_data = torch.tensor(x, dtype=torch.float).view((-1,28*28))    
-    loss = nn.CrossEntropyLoss()
+    loss_fn = nn.CrossEntropyLoss()
+    optimizer = torch.optim.Adam(model.parameters(), lr= alpha)
     
     for i in range(n):
-       
+        
         y_calculated= model(training_data)
         
-        output = loss(y_calculated, y)
-        output.backward()
+        loss = loss_fn(y_calculated, y)
         
-        #optimizer.zero_grad()
+        
+        optimizer.zero_grad()
+        loss.backward()
         optimizer.step()
         
-    print('loss -> ', output)
-    print('y_calculated -> ', training_data)
-    return output, training_data, y_calculated
+    print('loss -> ', loss)
+    return training_data, y_calculated
 
 def main(trainingdataf="./dataset/train-images.idx3-ubyte", traininglabelf="./dataset/train-labels.idx1-ubyte", testdataf="./dataset/t10k-images.idx3-ubyte", testlabelf="./dataset/t10k-labels.idx1-ubyte"):
     # read the first 500 images
     # If you omit the last parameter, *all* files will be read, which will take a while.
     # We recommend that you only read a limited number at first to write your code, and only then test it with all images
-    data,dims = read_idx.read(trainingdataf, 500)
-    lbls,dims1 = read_idx.read(traininglabelf, 500)
+    data,dims = read_idx.read(trainingdataf, 60000)
+    lbls,dims1 = read_idx.read(traininglabelf, 60000)
     ### TEST DATA
     test_data,test_dims = read_idx.read(testdataf, 250)
-    print(test_dims)
     test_lbls,test_dims1 = read_idx.read(testlabelf, 250)
     
     # Convert tensors to the appropriate data types, and - in the case of the images - shape
     labels = torch.tensor(lbls).long()
     
     #TEST DATA
-    #test_labels = torch.tensor(test_lbls).long()
+    test_labels = torch.tensor(test_lbls).long()
 	 
     # Neural Network
-    n = 100
-    alpha_value = float(0.000001)
+    n = 40
+    alpha_value = float(0.01)
     input_size = 28*28
-    hidden_sizes = [30]
+    hidden_sizes = [100]
+    hidden_sizes2 = [100, 100] #for multiple layers
     output_size = 10
     
-    model = model_fn(input_size, hidden_sizes, output_size)
+    #TRAINING
+    model = model_fn(input_size, hidden_sizes, output_size) #model with one layer
+    model2 = model_fn(input_size, hidden_sizes2, output_size) #model with two layers
     
-    output, training_data, y_calculated = training_opt_SGD(n, alpha_value, data, labels, model)
+    training_data, y_calculated = training_opt_Adam(n, alpha_value, data, labels, model)
+    training_data2, y_calculated2 = training_opt_Adam(n, alpha_value, data, labels, model2) #training with two layers
     
     #TEST DATA
     test_data_matrix = torch.tensor(test_data, dtype=torch.float).view((-1,28*28))
+    
+    #one layer
     test_y_calculated = model(test_data_matrix)
-    print(test_y_calculated)
-
+    predictions = torch.max(test_y_calculated, 1).indices
+    print('TEST WITH ONE LAYER: \n', classification_report(test_labels, predictions))
+    
+    #two layers
+    test_y_calculated2 = model2(test_data_matrix)
+    predictions2 = torch.max(test_y_calculated2, 1).indices
+    print('TEST WITH TWO LAYERS: \n',classification_report(test_labels, predictions2))
+    
+    #PRINT WEIGHTS
+    show_image(model[0].weight[9], "one_l_100_relu.png", scale=SCALE_RANGE)
+    show_image(model2[0].weight[9], "two_l_100_relu.png", scale=SCALE_RANGE)
+    
     # Filter data by label: labels == 2 will return a tensor with True/False depending on the label for each sample
     # this True/False tensor can be used to index trainig_data, returning only the ones for which the condition was True
     # twos = training_data[labels == 2]
-    twos = training_data[labels == 2]
-    
+    #twos = training_data[labels == 2]
     # show the first "2" on the screen
-    show_image(twos[0])
+    #show_image(twos[0])
     
-    fives = training_data[labels==5]
-    
+    #fives = training_data[labels==5]
     # save the first "5" as a png
-    show_image(fives[0], "five.png")
-    
-    
-    
-    
-    #import pdb
-    #pdb.set_trace()
+    #show_image(fives[0], "five.png")
     
 
 if __name__ == "__main__":

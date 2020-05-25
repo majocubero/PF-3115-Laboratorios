@@ -8,4 +8,4 @@ María José Cubero B22148
 
 Instructions:
 
-- Run: python lab1 "dataset.csv"
+- Run: python lab3 "dataset.csv"
