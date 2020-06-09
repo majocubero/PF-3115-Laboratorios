@@ -52,17 +52,17 @@ class DiscriminatorNet(torch.nn.Module):
         self.hidden0 = nn.Sequential( 
             nn.Linear(n_features, 512),
             nn.LeakyReLU(0.2),
-            nn.Dropout(0.3)
+            nn.Dropout(0.9)
         )
         self.hidden1 = nn.Sequential(
             nn.Linear(512, 256),
             nn.LeakyReLU(0.2),
-            nn.Dropout(0.3)
+            nn.Dropout(0.9)
         )
         self.hidden2 = nn.Sequential(
             nn.Linear(256, 128),
             nn.LeakyReLU(0.2),
-            nn.Dropout(0.3)
+            nn.Dropout(0.9)
         )
         self.out = nn.Sequential(
             nn.Linear(128, n_out),
@@ -117,12 +117,14 @@ def train_discriminator(d_optimizer, loss_fn, discriminator, real_data, fake_dat
     predition_real_data = discriminator(real_data)
     prediction_fake_data = discriminator(fake_data)
     
-    size = real_data.size(0)
+    real_data_size = real_data.size(0)
     # Calculate the loss
-    ones_tensor = Variable(torch.ones(size, 1))
+    ones_tensor = Variable(torch.ones(real_data_size, 1))
     loss_real = loss_fn(predition_real_data, ones_tensor)
     
-    zeros_tensor = Variable(torch.zeros(size, 1))
+    fake_data_size = fake_data.size(0)
+    zeros_tensor = Variable(torch.zeros(fake_data_size, 1))
+    
     loss_fake = loss_fn(prediction_fake_data, zeros_tensor)
     
     # Calculate gradient and perform optimization step
@@ -132,9 +134,11 @@ def train_discriminator(d_optimizer, loss_fn, discriminator, real_data, fake_dat
     loss_fake.backward()
     
     d_optimizer.step()
-
-def train_generator(g_optimizer, loss_fn, discriminator, generator, random_noise_images):
     
+    return loss_real + loss_fake
+
+def train_generator(g_optimizer, loss_fn, discriminator, generator):
+    random_noise_images = Variable(torch.randn(100, 100))
     # Pass random noise to generator
     generated_images = generator(random_noise_images)
     
@@ -150,70 +154,54 @@ def train_generator(g_optimizer, loss_fn, discriminator, generator, random_noise
     loss.backward()
     g_optimizer.step()
     
+    return loss
+
+def sample(repository, num):
+    if (len(repository) < num):
+        return repository
     
-def sample(real_images, num):
-    print('')
+    num = num - 1
+    randnum = random.randint(0, len(repository)-1 -num)
+    return repository[randnum : randnum + num]
     
-def trainig(n, n1, n2, real_images):
+def training(n, n1, n2, real_images):
     discriminator = DiscriminatorNet()
     generator = GeneratorNet()
     
-    alpha = float(0.01)
+    alpha = float(0.0001)
     d_optimizer = torch.optim.Adam(discriminator.parameters(), lr= alpha)
     g_optimizer = torch.optim.Adam(generator.parameters(), lr= alpha)
     
     loss_fn = nn.BCELoss()
-    
+    repository = generator(torch.randn(100, 100)).detach()
     for i in range(n):
 
         # Train discriminator
         for j in range(n1):
-            fake_data = generator(torch.randn(100, 100)).detach()
+            fake_data = torch.cat((generator(torch.randn(300, 100)).detach(), sample(repository, 100)), 0)
             real_data = sample(real_images, 100)
             d_error = train_discriminator(d_optimizer, loss_fn, discriminator, real_data, fake_data)
-            print(j, d_error)
     
         # Train generator
         for j in range(n2):
             # Sample random noise
-            random_noise_images = Variable(torch.randn(100, 100))
-            g_error = train_generator(g_optimizer, loss_fn, discriminator, generator, random_noise_images)
-            print(j, g_error)
+            g_error = train_generator(g_optimizer, loss_fn, discriminator, generator)
     
         # Sample some fake images at random
         fake_data = generator(torch.randn(100, 100)).detach()
+        repository = torch.cat((repository, fake_data), 0)
+        
         for j in range(fake_data.shape[0]):
             if random.random() < 0.1:
-                show_image(fake_data[j], 'img_%d_%d'%(i,j), SCALE_01)
-    
+                show_image(fake_data[j], './fotos/img_%d_%d.png'%(i,j), SCALE_01) 
 
-
-'''
-def training_opt_Adam(n, alpha, x, y, model):  
-    training_data = torch.tensor(x, dtype=torch.float).view((-1,28*28))    
-    loss_fn = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr= alpha)
-    
-    for i in range(n):
-        
-        y_calculated= model(training_data)
-        
-        loss = loss_fn(y_calculated, y)
-        
-        
-        optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
-        
-    print('loss -> ', loss)
-    return training_data, y_calculated'''
 
 def main(trainingdataf="./dataset/train-images.idx3-ubyte", traininglabelf="./dataset/train-labels.idx1-ubyte"):
     # read the first 500 images
     # If you omit the last parameter, *all* files will be read, which will take a while.
     # We recommend that you only read a limited number at first to write your code, and only then test it with all images
-    data,dims = read_idx.read(trainingdataf, 600)
-    lbls,dims1 = read_idx.read(traininglabelf, 600)
+    data,dims = read_idx.read(trainingdataf, 10000)
+    lbls,dims1 = read_idx.read(traininglabelf, 10000)
     
     # Convert tensors to the appropriate data types, and - in the case of the images - shape
     labels = torch.tensor(lbls).long()
@@ -222,26 +210,13 @@ def main(trainingdataf="./dataset/train-images.idx3-ubyte", traininglabelf="./da
     # Filter data by label: labels == 2 will return a tensor with True/False depending on the label for each sample
     # this True/False tensor can be used to index trainig_data, returning only the ones for which the condition was True
     # twos = training_data[labels == 2]
-    twos = training_data[labels == 2]
-    print('twos  --> ', (twos.size(0)))
-    # show the first "2" on the screen
-    show_image(twos[63])
+    twos = training_data[labels == 5]
     
-    #fives = training_data[labels==5]
-    # save the first "5" as a png
-    #show_image(fives[0], "five.png")
-    
-    random_noise_data = Variable(torch.randn(100, 100))
-    
-    print(random_noise_data)
-    
-    
-    
-    
-    
-    
-    
-    
+    n = 150
+    n1 = 20
+    n2 = 20
+    real_images = twos
+    training(n, n1, n2, real_images)
     
 
 if __name__ == "__main__":
