@@ -181,11 +181,13 @@ def training(n, n1, n2, real_images):
             fake_data = torch.cat((generator(torch.randn(300, 100)).detach(), sample(repository, 100)), 0)
             real_data = sample(real_images, 100)
             d_error = train_discriminator(d_optimizer, loss_fn, discriminator, real_data, fake_data)
+            #print(j, d_error)
     
         # Train generator
         for j in range(n2):
             # Sample random noise
             g_error = train_generator(g_optimizer, loss_fn, discriminator, generator)
+            #print(j, g_error)
     
         # Sample some fake images at random
         fake_data = generator(torch.randn(100, 100)).detach()
@@ -210,11 +212,11 @@ def main(trainingdataf="./dataset/train-images.idx3-ubyte", traininglabelf="./da
     # Filter data by label: labels == 2 will return a tensor with True/False depending on the label for each sample
     # this True/False tensor can be used to index trainig_data, returning only the ones for which the condition was True
     # twos = training_data[labels == 2]
-    twos = training_data[labels == 5]
+    twos = training_data[labels == 2]
     
-    n = 150
-    n1 = 20
-    n2 = 20
+    n = 100
+    n1 = 300
+    n2 = 300
     real_images = twos
     training(n, n1, n2, real_images)
     
