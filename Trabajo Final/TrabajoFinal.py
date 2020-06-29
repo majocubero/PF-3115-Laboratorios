@@ -3,7 +3,6 @@
 """
 Created on Wed May 27 18:43:02 2020
 
-@author: osvaldo
 """
 import data_processor
 import pandas as pd
@@ -13,6 +12,7 @@ from sklearn import tree
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsClassifier
 import sys
+import numpy
 
 
 def cargar_datos_de_modelos():
@@ -33,6 +33,7 @@ def regresion_logistica(X_train, y_train, X_test, y_test):
     resultado=resultado.rename(columns={'y':'verdadero', 0:'predicho'})
     
     imprimir_resultados(resultado.predicho, resultado.verdadero, y_test, prediccion)
+    return prediccion
 
 def arboles_de_desicion(X_train, y_train, X_test, y_test):
     print("--- ARBOLES DE DECISION \n")
@@ -44,6 +45,7 @@ def arboles_de_desicion(X_train, y_train, X_test, y_test):
     resultado=resultado.rename(columns={'y':'verdadero', 0:'predicho'})
     
     imprimir_resultados(resultado.predicho, resultado.verdadero, y_test, prediccion)
+    return prediccion
 
 def k_vecinos_mas_cercanos(X_train, y_train, X_test, y_test):
     print("--- K VECINOS MAS CERNANOS \n")
@@ -62,6 +64,7 @@ def k_vecinos_mas_cercanos(X_train, y_train, X_test, y_test):
     resultado=resultado.rename(columns={'y':'verdadero', 0:'predicho'})
     
     imprimir_resultados(resultado.predicho, resultado.verdadero, y_test, prediccion)
+    return prediccion
 
 def imprimir_resultados(resut_predicho, result_verdadero, y_test, prediccion):
     print("1. Tabla de confusión: \n", pd.crosstab(resut_predicho, result_verdadero))
@@ -69,7 +72,7 @@ def imprimir_resultados(resut_predicho, result_verdadero, y_test, prediccion):
 
 def main():
     # 1. Sin agrupar datos
-    print("A. Sin agrupación: ----------------------------------- \n")
+    '''print("A. Sin agrupación: ----------------------------------- \n")
     X_train, y_train, X_test, y_test = cargar_datos_de_modelos()
     X_train, X_test = data_processor.procesar_datos(X_train, X_test)
     regresion_logistica(X_train, y_train, X_test, y_test)
@@ -83,16 +86,22 @@ def main():
     
     regresion_logistica(X_train, y_train, X_test, y_test)
     arboles_de_desicion(X_train, y_train, X_test, y_test)
-    k_vecinos_mas_cercanos(X_train, y_train, X_test, y_test)
+    k_vecinos_mas_cercanos(X_train, y_train, X_test, y_test)'''
     
     ################### cambiando datos vol 2#####################
     print("\nC. Agrupando por job, p_outcome y contact-------------")
     X_train, y_train, X_test, y_test = cargar_datos_de_modelos() 
     X_train, X_test = data_processor.procesar_datos_agrupando_job_poutcome_contact(X_train, X_test)
     
-    regresion_logistica(X_train, y_train, X_test, y_test)
-    arboles_de_desicion(X_train, y_train, X_test, y_test)
-    k_vecinos_mas_cercanos(X_train, y_train, X_test, y_test)
+    prediccion_RL = regresion_logistica(X_train, y_train, X_test, y_test)
+    prediccion_AD = arboles_de_desicion(X_train, y_train, X_test, y_test)
+    prediccion_KNN = k_vecinos_mas_cercanos(X_train, y_train, X_test, y_test)
+    
+    resultado = pd.concat([X_test, y_test, prediccion_RL, prediccion_AD, prediccion_KNN], 1)
+    a = numpy.asarray(resultado)
+    
+    
+    pd.DataFrame(a).to_csv("resultado.csv")
     
 if __name__ == "__main__":
     main(*sys.argv[1:])

@@ -2,6 +2,7 @@
 
 import pandas as pd
 
+
 def procesar_datos(X_train, X_test): 
     return procesar_datos_train(X_train), procesar_datos_test(X_test)
     
